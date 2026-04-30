@@ -63,37 +63,6 @@ function GradeBadge({ grade }: { grade: string }) {
   )
 }
 
-// ── Score ring ─────────────────────────────────────────────────────────
-
-function ScoreRing({ score }: { score: number }) {
-  const pct   = Math.min(score / 100, 1)
-  const r     = 18
-  const circ  = 2 * Math.PI * r
-  const dash  = circ * pct
-  const grade = score >= 90 ? 'S' : score >= 75 ? 'A' : score >= 60 ? 'B' : score >= 45 ? 'C' : 'D'
-  const colors: Record<string, string> = {
-    S: '#2dd4bf', A: '#4ade80', B: '#facc15', C: '#fb923c', D: '#f87171',
-  }
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      <svg width="48" height="48" viewBox="0 0 48 48" className="-rotate-90">
-        <circle cx="24" cy="24" r={r} fill="none" stroke="var(--color-surface-offset)" strokeWidth="3.5" />
-        <circle
-          cx="24" cy="24" r={r} fill="none"
-          stroke={colors[grade]}
-          strokeWidth="3.5"
-          strokeDasharray={`${dash} ${circ - dash}`}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dasharray 0.6s cubic-bezier(0.16,1,0.3,1)' }}
-        />
-      </svg>
-      <span className="absolute text-sm font-semibold tabular-nums" style={{ color: colors[grade] }}>
-        {score}
-      </span>
-    </div>
-  )
-}
-
 // ── Empty state ─────────────────────────────────────────────────────────
 
 function EmptyPositions({ onNew }: { onNew: () => void }) {
@@ -124,13 +93,13 @@ function EmptyPositions({ onNew }: { onNew: () => void }) {
 export default function Dashboard() {
   const navigate = useNavigate()
 
-  const [stats,     setStats]     = useState<DashboardStats & { totalInvested?: string | null } | null>(null)
+  const [stats,     setStats]     = useState<DashboardStats | null>(null)
   const [positions, setPositions] = useState<Position[]>([])
   const [loading,   setLoading]   = useState(true)
 
   useEffect(() => {
     Promise.all([
-      api.get<DashboardStats & { totalInvested?: string | null }>('/stats'),
+      api.get<DashboardStats>('/stats'),
       api.get<Position[]>('/positions?status=OPEN'),
     ])
       .then(([s, p]) => { setStats(s); setPositions(p) })
@@ -138,9 +107,8 @@ export default function Dashboard() {
       .finally(() => setLoading(false))
   }, [])
 
-  // grade from avgDecisionScore
-  const avgScore  = stats?.avgDecisionScore ?? null
-  const avgGrade  = avgScore == null ? null
+  const avgScore = stats?.avgDecisionScore ?? null
+  const avgGrade = avgScore == null ? null
     : avgScore >= 90 ? 'S' : avgScore >= 75 ? 'A' : avgScore >= 60 ? 'B' : avgScore >= 45 ? 'C' : 'D'
 
   return (
@@ -177,25 +145,15 @@ export default function Dashboard() {
           />
           <KpiCard
             label="总投入"
-            value={
-              stats?.totalInvested
-                ? fmt(Number(stats.totalInvested))
-                : '—'
-            }
+            value={stats?.totalInvested ? fmt(Number(stats.totalInvested)) : '—'}
             sub="当前开仓合计"
           />
           <KpiCard
             label="已实现盈亏"
-            value={
-              stats?.totalRealizedPnl
-                ? fmt(Number(stats.totalRealizedPnl))
-                : '—'
-            }
+            value={stats?.totalRealizedPnl ? fmt(Number(stats.totalRealizedPnl)) : '—'}
             valueClass={
               stats?.totalRealizedPnl
-                ? Number(stats.totalRealizedPnl) >= 0
-                  ? 'text-green-400'
-                  : 'text-red-400'
+                ? Number(stats.totalRealizedPnl) >= 0 ? 'text-green-400' : 'text-red-400'
                 : 'text-[var(--color-text-muted)]'
             }
             sub="已平仓持仓合计"
@@ -256,7 +214,6 @@ export default function Dashboard() {
                     className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-offset)] transition-colors cursor-pointer"
                     onClick={() => navigate(`/positions/${pos.id}`)}
                   >
-                    {/* 标码 + 名称 */}
                     <td className="px-4 py-3">
                       <span className="font-semibold text-[var(--color-text)] tabular-nums tracking-wide">
                         {pos.ticker}
@@ -265,29 +222,23 @@ export default function Dashboard() {
                         <span className="ml-2 text-xs text-[var(--color-text-muted)]">{pos.name}</span>
                       )}
                     </td>
-                    {/* 市场 */}
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${MARKET_COLOR[pos.market] ?? MARKET_COLOR.OTHER}`}>
                         {MARKET_LABEL[pos.market] ?? pos.market}
                       </span>
                     </td>
-                    {/* 均成本 */}
                     <td className="px-4 py-3 tabular-nums text-[var(--color-text-muted)]">
                       {pos.avgCost ? Number(pos.avgCost).toFixed(3) : '—'}
                     </td>
-                    {/* 持仓量 */}
                     <td className="px-4 py-3 tabular-nums text-[var(--color-text-muted)]">
                       {pos.currentQuantity?.toLocaleString() ?? '—'}
                     </td>
-                    {/* 总投入 */}
                     <td className="px-4 py-3 tabular-nums text-[var(--color-text)]">
                       {pos.totalInvested ? fmt(Number(pos.totalInvested), pos.currency) : '—'}
                     </td>
-                    {/* 持仓天 */}
                     <td className="px-4 py-3 tabular-nums text-[var(--color-text-faint)]">
                       {holdDays(pos.openedAt)}d
                     </td>
-                    {/* 操作 */}
                     <td className="px-4 py-3">
                       <button
                         onClick={e => { e.stopPropagation(); navigate('/trades/new') }}
