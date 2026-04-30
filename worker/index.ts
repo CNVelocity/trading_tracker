@@ -9,11 +9,13 @@ import { positionsRouter } from './routes/positions'
 import { tradesRouter } from './routes/trades'
 import { questionnairesRouter } from './routes/questionnaires'
 import { watchlistRouter } from './routes/watchlist'
+import { setupRouter } from './routes/setup'
 
 type Bindings = {
   DATABASE_URL: string
-  JWT_SECRET: string
-  ASSETS: Fetcher
+  JWT_SECRET:   string
+  SETUP_TOKEN?: string
+  ASSETS:       Fetcher
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -28,7 +30,8 @@ app.use('/api/*', cors({
 
 // ── Public routes (no JWT) ───────────────────────────────────────────────────
 app.get('/api/health', (c) => c.json({ ok: true, ts: Date.now() }))
-app.route('/api/auth', publicAuthRouter)   // POST /login, POST /logout
+app.route('/api/auth',  publicAuthRouter)   // POST /login, POST /logout
+app.route('/api/setup', setupRouter)        // POST /setup (one-time init)
 
 // ── Auth middleware — applies to everything registered below ─────────────────
 app.use('/api/*', authMiddleware)

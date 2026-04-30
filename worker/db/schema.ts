@@ -120,3 +120,10 @@ export const watchlist = pgTable('watchlist', {
   createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt:      timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// ─── System Config ────────────────────────────────────────────────────────────
+export const systemConfig = pgTable('system_config', {
+  key:       varchar('key', { length: 100 }).primaryKey(),
+  value:     text('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
