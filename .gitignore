@@ -1,8 +1,29 @@
-node_modules
-dist
-.wrangler
+# dependencies
+node_modules/
+
+# build output
+dist/
+.wrangler/
+
+# environment
 .env
 .env.local
-*.env
+.env.*.local
+
+# editor
+.vscode/
+.idea/
+
+# OS
 .DS_Store
-worker/db/migrations
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# drizzle migrations (generated, commit separately if desired)
+worker/db/migrations/

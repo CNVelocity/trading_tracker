@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:worker": "wrangler dev",
     "build": "tsc -p tsconfig.app.json --noEmit && vite build",
     "preview": "vite preview",
-    "dev:worker": "wrangler dev",
     "deploy": "bun run build && wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "bun run scripts/seed.ts"
+    "db:seed": "bun run worker/db/seed.ts"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -22,9 +22,9 @@
     "lucide-react": "^0.460.0",
     "clsx": "^2.1.1",
     "recharts": "^2.13.0",
-    "@neondatabase/serverless": "^0.10.4",
-    "drizzle-orm": "^0.38.0",
-    "hono": "^4.6.0"
+    "hono": "^4.6.0",
+    "drizzle-orm": "^0.36.0",
+    "@neondatabase/serverless": "^0.10.4"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260420.1",
@@ -35,6 +35,6 @@
     "vite": "^6.3.0",
     "@tailwindcss/vite": "^4.1.0",
     "wrangler": "^4.0.0",
-    "drizzle-kit": "^0.30.0"
+    "drizzle-kit": "^0.27.0"
   }
 }
