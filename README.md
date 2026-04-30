@@ -2,24 +2,23 @@
 
 > 股票交易记录与决策质量分析系统（多用户版）
 
-一个帮助多位用户分别记录交易、通过问卷评估决策质量、并在个人看板中分析行为模式的全栈 Web 应用。每位用户拥有独立的数据视图，管理员可管理账号。
+帮助多位用户独立记录交易、通过问卷评估决策质量、在个人看板中分析行为模式的全栈 Web 应用。每位用户数据完全隔离，管理员统一管理账号。
 
 ---
 
-## ✨ 功能概览
+## 当前构建状态
 
-- **多用户隔离**：每位用户的持仓、交易记录、问卷、复盘完全独立
-- **账号管理**：管理员可创建/停用账号；用户可修改自己的密码
-- **交易记录**：记录每笔买入/卖出操作，支持 A 股、港股、美股
-- **决策问卷**：每次交易前完成结构化问卷，获得量化的决策质量评分
-- **持仓管理**：实时计算当前持仓、成本均价、浮动盈亏
-- **分析看板**：可视化交易行为、盈亏分布与决策质量相关性
-- **自选股池**：维护个人待观察/待买入标的清单
-- **交易复盘**：平仓后填写复盘总结，积累经验教训
+| 层 | 状态 | 说明 |
+|---|---|---|
+| 前端（React + Vite） | ✅ 构建通过 | 路由、页面骨架、登录表单、UI 组件均已就绪 |
+| Worker 鉴权 | ⚠️ 需重写 | `worker/auth.ts` 和 `worker/middleware/auth.ts` 仍是旧单 Token 逻辑 |
+| 数据库 Schema | ⚠️ 需更新 | `worker/db/schema.ts` 缺少 `users` 表，`positions`/`watchlist` 缺少 `user_id` |
+| Worker 路由 | ⚠️ 需补充 | 缺少 `auth.ts`、`users.ts` 路由；现有路由尚无用户隔离逻辑 |
+| 数据库迁移 | ❌ 未执行 | Schema 变更后需运行 `bun run db:migrate` |
 
 ---
 
-## 🛠️ 技术栈
+## 技术栈
 
 | 层 | 技术 |
 |---|---|
@@ -31,62 +30,64 @@
 | 图表 | Recharts |
 | 构建工具 | Vite |
 | 部署平台 | Cloudflare Pages |
-| 后端运行时 | Cloudflare Workers (Hono) |
-| 数据库 | Neon PostgreSQL (serverless) |
+| 后端运行时 | Cloudflare Workers（Hono） |
+| 数据库 | Neon PostgreSQL（serverless） |
 | ORM | Drizzle ORM |
-| 鉴权 | JWT (jose) + httpOnly Cookie |
+| 鉴权 | JWT（HS256，`jose` 库）+ httpOnly Cookie |
 | 密码哈希 | Web Crypto API — PBKDF2-SHA256 |
 | 包管理 | Bun |
 
-> 与 [ve-photo-gallery](https://github.com/CNVelocity/ve-photo-gallery) 保持相同的工程链：Vite + Tailwind v4 + Cloudflare Workers + Neon。
-
 ---
 
-## 📁 项目结构
+## 项目结构
 
 ```
 trading_tracker/
-├── src/
+├── src/                          # 前端（React）
 │   ├── components/
-│   │   ├── ui/              # Button, Input, Modal, Badge, Card...
-│   │   ├── charts/          # Recharts 封装
-│   │   └── layout/          # AppLayout, Sidebar, Header, BottomNav
+│   │   ├── ui/                   # Button, Card, Input, Modal, Badge, Skeleton, ScoreSlider
+│   │   ├── charts/               # Recharts 封装（待实现）
+│   │   └── layout/               # Layout, Sidebar, Header
 │   ├── pages/
-│   │   ├── Login.tsx             # 登录页
-│   │   ├── Dashboard.tsx         # 个人看板首页
-│   │   ├── Trades.tsx            # 交易列表
-│   │   ├── NewTrade.tsx          # 新建交易 + 问卷
-│   │   ├── Position.tsx          # 单个持仓详情
-│   │   ├── Positions.tsx         # 持仓总览
-│   │   ├── Questionnaire.tsx     # 独立问卷页
-│   │   ├── Watchlist.tsx         # 自选股
-│   │   ├── Analytics.tsx         # 深度分析
-│   │   ├── Settings.tsx          # 个人设置（修改密码）
+│   │   ├── Login.tsx             # ✅ 用户名+密码登录页
+│   │   ├── Dashboard.tsx         # ✅ 骨架（KPI 待接数据）
+│   │   ├── Positions.tsx         # ✅ 骨架
+│   │   ├── Trades.tsx            # ✅ 骨架
+│   │   ├── NewTrade.tsx          # ✅ 骨架（表单待实现）
+│   │   ├── Questionnaire.tsx     # ✅ 骨架（问卷 UI 待实现）
+│   │   ├── Watchlist.tsx         # ✅ 骨架
+│   │   ├── Analytics.tsx         # ✅ 骨架
 │   │   └── admin/
-│   │       └── Users.tsx         # 管理员：用户管理
-│   ├── hooks/
-│   │   ├── useAuth.ts        # 读取当前用户 Context
-│   │   └── useApi.ts         # 封装带 Cookie 的 fetch
+│   │       └── Users.tsx         # ❌ 待创建
 │   ├── context/
-│   │   └── AuthContext.tsx   # 全局用户状态
-│   ├── types/
+│   │   └── AuthContext.tsx       # ❌ 待创建（全局用户状态）
+│   ├── hooks/
+│   │   └── useAuth.ts            # ❌ 待创建
+│   ├── types/index.ts            # ✅ 已含 User, DashboardStats 等类型
 │   └── lib/
-│       └── api.ts            # API 请求封装
+│       ├── api.ts                # ✅ 含 login(username, password) 函数
+│       └── auth.ts               # ✅ getToken / setToken / clearToken
 ├── worker/
-│   ├── index.ts              # Hono 应用入口
-│   ├── routes/
-│   │   ├── auth.ts           # 登录/登出/当前用户
-│   │   ├── users.ts          # 管理员：用户 CRUD
-│   │   ├── trades.ts
-│   │   ├── positions.ts
-│   │   ├── questionnaires.ts
-│   │   └── watchlist.ts
+│   ├── index.ts                  # ⚠️ 需更新 Bindings + 注册 auth/users 路由
+│   ├── auth.ts                   # ⚠️ 旧版单 Token，需完整替换为 PBKDF2+JWT
+│   ├── types.ts                  # ⚠️ 需更新为多用户 Bindings + Variables
 │   ├── db/
-│   │   ├── schema.ts         # Drizzle ORM Schema
-│   │   └── index.ts          # Neon 连接
-│   └── middleware/
-│       ├── auth.ts           # JWT 验证中间件
-│       └── requireAdmin.ts   # 管理员权限守卫
+│   │   ├── schema.ts             # ⚠️ 需添加 users 表 + user_id FK
+│   │   ├── index.ts              # ✅ Neon 连接
+│   │   └── seed.ts               # ⚠️ 需添加初始管理员账号 seed 逻辑
+│   ├── lib/                      # ❌ 目录待创建
+│   │   ├── password.ts           # ❌ PBKDF2 哈希/验证
+│   │   └── jwt.ts                # ❌ JWT 签发/验证（含 userId/role）
+│   ├── middleware/
+│   │   ├── auth.ts               # ⚠️ 旧版 token 比对，需替换为 JWT 验证
+│   │   └── requireAdmin.ts       # ❌ 待创建
+│   └── routes/
+│       ├── auth.ts               # ❌ 待创建（login/logout/me/password）
+│       ├── users.ts              # ❌ 待创建（管理员 CRUD）
+│       ├── positions.ts          # ⚠️ 需加 user_id 隔离
+│       ├── trades.ts             # ⚠️ 需加 user_id 隔离
+│       ├── questionnaires.ts     # ⚠️ 需加 user_id 隔离
+│       └── watchlist.ts          # ⚠️ 需加 user_id 隔离
 ├── public/
 ├── wrangler.toml
 ├── vite.config.ts
@@ -96,552 +97,745 @@ trading_tracker/
 
 ---
 
-## 🗄️ 数据库设计
+## 下一步：按顺序完成以下任务
 
-> ⚠️ 以下 Schema 为预设方案，**请确认后再执行迁移**。
+### Step 1 — 更新 `worker/db/schema.ts`（添加 `users` 表 + `user_id` FK）
 
-使用 **Neon PostgreSQL** + **Drizzle ORM**。
+在现有 schema 的 **顶部** 增加 `userRoleEnum` 和 `users` 表，并在 `positions`、`watchlist` 表中追加 `userId` 字段：
 
----
+```typescript
+// 在文件顶部新增 enum
+export const userRoleEnum = pgEnum('user_role', ['ADMIN', 'USER'])
 
-### Enum 类型
+// 在所有其他 pgTable 之前新增 users 表
+export const users = pgTable('users', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  username:     varchar('username', { length: 50 }).notNull().unique(),
+  displayName:  varchar('display_name', { length: 100 }).notNull(),
+  passwordHash: text('password_hash').notNull(),
+  passwordSalt: text('password_salt').notNull(),
+  role:         userRoleEnum('role').notNull().default('USER'),
+  isActive:     boolean('is_active').notNull().default(true),
+  lastLoginAt:  timestamp('last_login_at', { withTimezone: true }),
+  createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:    timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
 
-```sql
-CREATE TYPE market_type    AS ENUM ('A_SHARE', 'HK', 'US', 'ETF', 'OTHER');
-CREATE TYPE direction_type AS ENUM ('BUY', 'SELL');
-CREATE TYPE position_status AS ENUM ('OPEN', 'CLOSED');
-CREATE TYPE currency_type  AS ENUM ('CNY', 'HKD', 'USD');
-CREATE TYPE grade_type     AS ENUM ('S', 'A', 'B', 'C', 'D');
-CREATE TYPE question_type  AS ENUM ('SCORE', 'BOOL', 'TEXT', 'SELECT');
-CREATE TYPE user_role      AS ENUM ('ADMIN', 'USER');   -- ← 新增
+// 在 positions 表中追加（紧跟 id 字段之后）
+userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+
+// 在 watchlist 表中追加（同样位置）
+userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+```
+
+完成后运行：
+```bash
+bun run db:generate   # 生成迁移文件
+bun run db:migrate    # 执行迁移（需先配置 DATABASE_URL）
 ```
 
 ---
 
-### Table: `users` ⭐ 新增
+### Step 2 — 创建 `worker/lib/password.ts`（PBKDF2 密码工具）
 
-存储用户账号，密码使用 PBKDF2-SHA256 哈希后存储，**绝不明文**。
+```typescript
+// worker/lib/password.ts
+const ITERATIONS = 310_000  // OWASP 2024 推荐
+const ENC = new TextEncoder()
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | `uuid` PK DEFAULT `gen_random_uuid()` | 主键 |
-| `username` | `varchar(50)` UNIQUE NOT NULL | 登录用户名（小写字母+数字+下划线）|
-| `display_name` | `varchar(100)` NOT NULL | 昵称，显示在页面顶部 |
-| `password_hash` | `text` NOT NULL | PBKDF2 哈希结果（Base64） |
-| `password_salt` | `text` NOT NULL | 随机盐值（Base64，每账号唯一）|
-| `role` | `user_role` NOT NULL DEFAULT `'USER'` | 角色：ADMIN / USER |
-| `is_active` | `boolean` NOT NULL DEFAULT `true` | 是否启用（停用不删除数据）|
-| `last_login_at` | `timestamptz` | 最近登录时间 |
-| `created_at` | `timestamptz` DEFAULT `now()` | |
-| `updated_at` | `timestamptz` DEFAULT `now()` | |
+export async function hashPassword(
+  password: string,
+  existingSalt?: string
+): Promise<{ hash: string; salt: string }> {
+  const saltBytes = existingSalt
+    ? Uint8Array.from(atob(existingSalt), c => c.charCodeAt(0))
+    : crypto.getRandomValues(new Uint8Array(16))
 
-> 初始管理员账号通过 `bun run db:seed` 创建，用户名/密码见 `.env.example`。
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', ENC.encode(password), 'PBKDF2', false, ['deriveBits']
+  )
+  const hashBuffer = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: saltBytes, iterations: ITERATIONS, hash: 'SHA-256' },
+    keyMaterial, 256
+  )
+  return {
+    hash: btoa(String.fromCharCode(...new Uint8Array(hashBuffer))),
+    salt: btoa(String.fromCharCode(...saltBytes)),
+  }
+}
 
----
-
-### Table: `positions`（持仓/交易主体）
-
-代表一次完整的交易周期（建仓 → 清仓）。**新增 `user_id` 实现用户隔离。**
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | `uuid` PK | |
-| **`user_id`** | **`uuid` FK → `users.id` NOT NULL** | **所属用户 ⭐** |
-| `ticker` | `varchar(20)` NOT NULL | 股票代码，如 `000001`、`TSLA` |
-| `name` | `varchar(100)` | 股票名称 |
-| `market` | `market_type` NOT NULL | |
-| `currency` | `currency_type` NOT NULL DEFAULT `'CNY'` | |
-| `status` | `position_status` NOT NULL DEFAULT `'OPEN'` | |
-| `opened_at` | `date` NOT NULL | 建仓日期 |
-| `closed_at` | `date` | 清仓日期 |
-| `tags` | `text[]` | 策略标签 |
-| `notes` | `text` | |
-| `avg_cost` | `numeric(12,4)` | 当前持仓均价（加权） |
-| `current_quantity` | `integer` | 当前持股数量 |
-| `total_invested` | `numeric(14,4)` | 累计买入金额 |
-| `realized_pnl` | `numeric(14,4)` | 已实现盈亏 |
-| `created_at` | `timestamptz` DEFAULT `now()` | |
-| `updated_at` | `timestamptz` DEFAULT `now()` | |
-
-**索引**：`CREATE INDEX ON positions (user_id, status);`
+export async function verifyPassword(
+  password: string,
+  storedHash: string,
+  storedSalt: string
+): Promise<boolean> {
+  const { hash } = await hashPassword(password, storedSalt)
+  // 等长比对（timing-safe）
+  if (hash.length !== storedHash.length) return false
+  let diff = 0
+  for (let i = 0; i < hash.length; i++) diff |= hash.charCodeAt(i) ^ storedHash.charCodeAt(i)
+  return diff === 0
+}
+```
 
 ---
 
-### Table: `trade_records`（单笔交易记录）
+### Step 3 — 创建 `worker/lib/jwt.ts`（含 userId 的 JWT）
 
-通过 `position_id → positions.user_id` 归属用户，**无需单独加 `user_id`**。
+```typescript
+// worker/lib/jwt.ts
+// 注意：依赖 jose 库。若 Cloudflare Workers 环境有兼容问题，
+// 可改用下方纯 Web Crypto 实现（无外部依赖）。
+import { SignJWT, jwtVerify } from 'jose'
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `position_id` | `uuid` FK → `positions.id` NOT NULL | 所属持仓 |
-| `direction` | `direction_type` NOT NULL | |
-| `trade_date` | `date` NOT NULL | |
-| `price` | `numeric(12,4)` NOT NULL | |
-| `quantity` | `integer` NOT NULL | |
-| `commission` | `numeric(10,4)` DEFAULT `0` | 手续费 |
-| `currency` | `currency_type` NOT NULL DEFAULT `'CNY'` | |
-| `total_amount` | `numeric(14,4)` | 服务端计算 |
-| `notes` | `text` | |
-| `created_at` | `timestamptz` DEFAULT `now()` | |
+export interface JwtPayload {
+  sub: string          // userId
+  username: string
+  role: 'ADMIN' | 'USER'
+}
 
----
+const secret = (jwtSecret: string) => new TextEncoder().encode(jwtSecret)
 
-### Table: `questionnaire_templates`（题目定义）
+export async function signToken(payload: JwtPayload, jwtSecret: string): Promise<string> {
+  return new SignJWT({ username: payload.username, role: payload.role })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(payload.sub)
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(secret(jwtSecret))
+}
 
-全局共享，不区分用户（所有人使用相同题目）。
+export async function verifyToken(
+  token: string,
+  jwtSecret: string
+): Promise<JwtPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret(jwtSecret))
+    return {
+      sub:      payload.sub as string,
+      username: payload['username'] as string,
+      role:     payload['role'] as 'ADMIN' | 'USER',
+    }
+  } catch {
+    return null
+  }
+}
+```
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `direction` | `direction_type` | 适用于买入/卖出 |
-| `question_key` | `varchar(50)` UNIQUE NOT NULL | |
-| `question_text` | `text` NOT NULL | |
-| `question_type` | `question_type` NOT NULL | |
-| `options` | `jsonb` | SELECT 题型选项 `[{value, label, score}]` |
-| `max_score` | `integer` DEFAULT `10` | |
-| `weight` | `numeric(4,2)` DEFAULT `1.0` | |
-| `hint` | `text` | |
-| `order_index` | `integer` | |
-| `is_active` | `boolean` DEFAULT `true` | |
-| `created_at` | `timestamptz` DEFAULT `now()` | |
-
----
-
-### Table: `questionnaires`（问卷答题记录）
-
-通过 `trade_id → trade_records → positions.user_id` 归属用户。
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `trade_id` | `uuid` FK → `trade_records.id` UNIQUE | |
-| `direction` | `direction_type` NOT NULL | |
-| `answers` | `jsonb` NOT NULL | `{question_key: {score, text, selected}}` |
-| `total_score` | `integer` NOT NULL | 综合得分（0-100） |
-| `grade` | `grade_type` NOT NULL | |
-| `completed_at` | `timestamptz` NOT NULL | |
-| `created_at` | `timestamptz` DEFAULT `now()` | |
+> 若不想引入 `jose`，可直接在 `worker/auth.ts` 基础上扩展 payload，将 `sub`/`username`/`role` 写入 JWT payload JSON 即可，无需额外依赖。
 
 ---
 
-### Table: `trade_reviews`（交易复盘）
+### Step 4 — 重写 `worker/middleware/auth.ts`
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `position_id` | `uuid` FK → `positions.id` UNIQUE | |
-| `actual_return_pct` | `numeric(8,4)` | 实际收益率（%） |
-| `hold_days` | `integer` | |
-| `what_went_right` | `text` | |
-| `what_went_wrong` | `text` | |
-| `lessons` | `text` | |
-| `would_do_again` | `boolean` | |
-| `outcome_score` | `integer` CHECK(1-10) | |
-| `reviewed_at` | `timestamptz` NOT NULL | |
-| `created_at` | `timestamptz` DEFAULT `now()` | |
+将现有的单 token 对比逻辑替换为 JWT 验证，并把用户信息挂到 Hono Context：
+
+```typescript
+// worker/middleware/auth.ts
+import { createMiddleware } from 'hono/factory'
+import { verifyToken } from '../lib/jwt'
+import { db } from '../db'
+import { users } from '../db/schema'
+import { eq } from 'drizzle-orm'
+
+type Bindings = { DATABASE_URL: string; JWT_SECRET: string }
+type Variables = { userId: string; userRole: 'ADMIN' | 'USER'; username: string }
+
+export const authMiddleware = createMiddleware<{
+  Bindings: Bindings
+  Variables: Variables
+}>(async (c, next) => {
+  // 支持 Cookie 和 Authorization header 两种方式
+  const cookieHeader = c.req.header('Cookie') ?? ''
+  const cookieToken = cookieHeader.match(/(?:^|;\s*)tt_token=([^;]+)/)?.[1]
+  const bearerToken = c.req.header('Authorization')?.replace('Bearer ', '').trim()
+  const token = cookieToken ?? bearerToken
+
+  if (!token) return c.json({ error: 'Unauthorized' }, 401)
+
+  const payload = await verifyToken(token, c.env.JWT_SECRET)
+  if (!payload) return c.json({ error: 'Unauthorized' }, 401)
+
+  // 验证账号是否仍处于激活状态（防止停用账号继续使用旧 token）
+  const [user] = await db(c.env.DATABASE_URL)
+    .select({ isActive: users.isActive })
+    .from(users)
+    .where(eq(users.id, payload.sub))
+    .limit(1)
+
+  if (!user?.isActive) return c.json({ error: 'Account disabled' }, 403)
+
+  c.set('userId', payload.sub)
+  c.set('userRole', payload.role)
+  c.set('username', payload.username)
+  await next()
+})
+```
 
 ---
 
-### Table: `watchlist`（自选股/观察池）
+### Step 5 — 创建 `worker/middleware/requireAdmin.ts`
 
-**新增 `user_id` 实现用户隔离。**
+```typescript
+// worker/middleware/requireAdmin.ts
+import { createMiddleware } from 'hono/factory'
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | `uuid` PK | |
-| **`user_id`** | **`uuid` FK → `users.id` NOT NULL** | **所属用户 ⭐** |
-| `ticker` | `varchar(20)` NOT NULL | |
-| `name` | `varchar(100)` | |
-| `market` | `market_type` NOT NULL | |
-| `currency` | `currency_type` DEFAULT `'CNY'` | |
-| `target_buy_price` | `numeric(12,4)` | |
-| `reason` | `text` | |
-| `priority` | `varchar(10)` DEFAULT `'MEDIUM'` | HIGH / MEDIUM / LOW |
-| `removed_at` | `timestamptz` | 软删除 |
-| `notes` | `text` | |
-| `created_at` | `timestamptz` DEFAULT `now()` | |
+type Variables = { userRole: 'ADMIN' | 'USER' }
 
-**索引**：`CREATE INDEX ON watchlist (user_id) WHERE removed_at IS NULL;`
+export const requireAdmin = createMiddleware<{ Variables: Variables }>(async (c, next) => {
+  if (c.get('userRole') !== 'ADMIN') {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  await next()
+})
+```
 
 ---
 
-### 数据归属关系图
+### Step 6 — 创建 `worker/routes/auth.ts`
+
+```typescript
+// worker/routes/auth.ts
+import { Hono } from 'hono'
+import { db } from '../db'
+import { users } from '../db/schema'
+import { eq } from 'drizzle-orm'
+import { verifyPassword, hashPassword } from '../lib/password'
+import { signToken } from '../lib/jwt'
+import { checkRateLimit } from '../auth'   // 复用已有的 rate limit 逻辑
+
+type Bindings = { DATABASE_URL: string; JWT_SECRET: string }
+type Variables = { userId: string; userRole: 'ADMIN' | 'USER'; username: string }
+
+export const authRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+
+// POST /api/auth/login
+authRouter.post('/login', async (c) => {
+  const ip = c.req.header('CF-Connecting-IP') ?? 'unknown'
+  const limit = checkRateLimit(ip)
+  if (!limit.allowed) {
+    return c.json({ error: `请求过于频繁，请 ${limit.retryAfter} 秒后重试` }, 429)
+  }
+
+  const { username, password } = await c.req.json<{ username: string; password: string }>()
+  if (!username || !password) return c.json({ error: '参数缺失' }, 400)
+
+  const [user] = await db(c.env.DATABASE_URL)
+    .select()
+    .from(users)
+    .where(eq(users.username, username.toLowerCase().trim()))
+    .limit(1)
+
+  if (!user || !user.isActive) return c.json({ error: '用户名或密码错误' }, 401)
+
+  const valid = await verifyPassword(password, user.passwordHash, user.passwordSalt)
+  if (!valid) return c.json({ error: '用户名或密码错误' }, 401)
+
+  // 更新最近登录时间（不等待）
+  db(c.env.DATABASE_URL)
+    .update(users)
+    .set({ lastLoginAt: new Date() })
+    .where(eq(users.id, user.id))
+    .execute()
+    .catch(() => {})
+
+  const token = await signToken(
+    { sub: user.id, username: user.username, role: user.role },
+    c.env.JWT_SECRET
+  )
+
+  // 将 token 同时写入 httpOnly Cookie 和响应体（前端 localStorage 兼容方案）
+  c.header('Set-Cookie',
+    `tt_token=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 3600}`
+  )
+  return c.json({
+    token,
+    user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role }
+  })
+})
+
+// POST /api/auth/logout
+authRouter.post('/logout', (c) => {
+  c.header('Set-Cookie', 'tt_token=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0')
+  return c.json({ ok: true })
+})
+
+// GET /api/auth/me  — 需经过 authMiddleware
+authRouter.get('/me', async (c) => {
+  const [user] = await db(c.env.DATABASE_URL)
+    .select({
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName,
+      role: users.role,
+      lastLoginAt: users.lastLoginAt,
+    })
+    .from(users)
+    .where(eq(users.id, c.get('userId')))
+    .limit(1)
+  if (!user) return c.json({ error: 'User not found' }, 404)
+  return c.json(user)
+})
+
+// PUT /api/auth/password  — 修改自己的密码
+authRouter.put('/password', async (c) => {
+  const { currentPassword, newPassword } = await c.req.json<{
+    currentPassword: string; newPassword: string
+  }>()
+  if (!currentPassword || !newPassword || newPassword.length < 8) {
+    return c.json({ error: '新密码至少 8 位' }, 400)
+  }
+
+  const [user] = await db(c.env.DATABASE_URL)
+    .select()
+    .from(users)
+    .where(eq(users.id, c.get('userId')))
+    .limit(1)
+  if (!user) return c.json({ error: 'Not found' }, 404)
+
+  const valid = await verifyPassword(currentPassword, user.passwordHash, user.passwordSalt)
+  if (!valid) return c.json({ error: '当前密码错误' }, 401)
+
+  const { hash, salt } = await hashPassword(newPassword)
+  await db(c.env.DATABASE_URL)
+    .update(users)
+    .set({ passwordHash: hash, passwordSalt: salt, updatedAt: new Date() })
+    .where(eq(users.id, user.id))
+  return c.json({ ok: true })
+})
+```
+
+---
+
+### Step 7 — 创建 `worker/routes/users.ts`（管理员专用）
+
+```typescript
+// worker/routes/users.ts  — 全部路由均需 authMiddleware + requireAdmin
+import { Hono } from 'hono'
+import { db } from '../db'
+import { users } from '../db/schema'
+import { eq } from 'drizzle-orm'
+import { hashPassword } from '../lib/password'
+
+type Bindings = { DATABASE_URL: string }
+type Variables = { userId: string; userRole: 'ADMIN' | 'USER' }
+
+export const usersRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+
+// GET /api/users  — 用户列表
+usersRouter.get('/', async (c) => {
+  const list = await db(c.env.DATABASE_URL)
+    .select({
+      id: users.id, username: users.username, displayName: users.displayName,
+      role: users.role, isActive: users.isActive,
+      lastLoginAt: users.lastLoginAt, createdAt: users.createdAt,
+    })
+    .from(users)
+    .orderBy(users.createdAt)
+  return c.json(list)
+})
+
+// POST /api/users  — 创建新用户
+usersRouter.post('/', async (c) => {
+  const { username, displayName, password, role } =
+    await c.req.json<{ username: string; displayName: string; password: string; role?: 'ADMIN' | 'USER' }>()
+  if (!username || !displayName || !password) return c.json({ error: '参数缺失' }, 400)
+  if (password.length < 8) return c.json({ error: '密码至少 8 位' }, 400)
+
+  const { hash, salt } = await hashPassword(password)
+  const [user] = await db(c.env.DATABASE_URL)
+    .insert(users)
+    .values({
+      username: username.toLowerCase().trim(),
+      displayName,
+      passwordHash: hash,
+      passwordSalt: salt,
+      role: role ?? 'USER',
+    })
+    .returning({ id: users.id, username: users.username, displayName: users.displayName, role: users.role })
+  return c.json(user, 201)
+})
+
+// PUT /api/users/:id  — 修改用户（角色/停用）
+usersRouter.put('/:id', async (c) => {
+  const { displayName, role, isActive, password } =
+    await c.req.json<{ displayName?: string; role?: 'ADMIN' | 'USER'; isActive?: boolean; password?: string }>()
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() }
+  if (displayName !== undefined) updates.displayName = displayName
+  if (role !== undefined) updates.role = role
+  if (isActive !== undefined) updates.isActive = isActive
+  if (password) {
+    if (password.length < 8) return c.json({ error: '密码至少 8 位' }, 400)
+    const { hash, salt } = await hashPassword(password)
+    updates.passwordHash = hash
+    updates.passwordSalt = salt
+  }
+
+  const [user] = await db(c.env.DATABASE_URL)
+    .update(users)
+    .set(updates)
+    .where(eq(users.id, c.req.param('id')))
+    .returning({ id: users.id, username: users.username, isActive: users.isActive })
+  if (!user) return c.json({ error: 'Not found' }, 404)
+  return c.json(user)
+})
+```
+
+---
+
+### Step 8 — 更新 `worker/index.ts`
+
+```typescript
+// worker/index.ts — 完整替换
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { logger } from 'hono/logger'
+import { authMiddleware } from './middleware/auth'
+import { requireAdmin } from './middleware/requireAdmin'
+import { authRouter } from './routes/auth'
+import { usersRouter } from './routes/users'
+import { positionsRouter } from './routes/positions'
+import { tradesRouter } from './routes/trades'
+import { questionnairesRouter } from './routes/questionnaires'
+import { watchlistRouter } from './routes/watchlist'
+
+type Bindings = {
+  DATABASE_URL: string
+  JWT_SECRET: string          // ← 替换旧的 API_SECRET_TOKEN
+  ASSETS: Fetcher
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
+
+app.use('*', logger())
+app.use('/api/*', cors({
+  origin: '*',
+  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  credentials: true,
+}))
+
+// 公开路由（不需要登录）
+app.route('/api/auth', authRouter)
+app.get('/api/health', (c) => c.json({ ok: true, ts: Date.now() }))
+
+// 需要登录的路由
+app.use('/api/*', authMiddleware)
+app.route('/api/auth', authRouter)        // /me 和 /password 挂在 authMiddleware 之后
+app.use('/api/users', requireAdmin)        // 用户管理仅管理员
+app.route('/api/users', usersRouter)
+app.route('/api/positions', positionsRouter)
+app.route('/api/trades', tradesRouter)
+app.route('/api/questionnaires', questionnairesRouter)
+app.route('/api/watchlist', watchlistRouter)
+
+// 兜底：SPA 资源
+app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw))
+
+export default app
+```
+
+> **注意**：`authRouter` 在 `authMiddleware` 前后各注册一次，原因是 `/login` 不需要鉴权，但 `/me` 和 `/password` 需要。更好的做法是在 `authRouter` 内部只对特定子路由应用中间件。
+
+---
+
+### Step 9 — 为所有业务路由加 `user_id` 过滤
+
+以 `positions.ts` 为例：
+
+```typescript
+// worker/routes/positions.ts 修改要点
+type Variables = { userId: string; userRole: 'ADMIN' | 'USER' }
+
+// GET /api/positions — 只返回自己的
+positionsRouter.get('/', async (c) => {
+  const userId = c.get('userId')   // ← 从 JWT 中间件取
+  const rows = await db(c.env.DATABASE_URL)
+    .select()
+    .from(positions)
+    .where(eq(positions.userId, userId))  // ← 强制过滤
+    .orderBy(desc(positions.createdAt))
+  return c.json(rows)
+})
+
+// POST /api/positions — 创建时绑定 userId
+positionsRouter.post('/', async (c) => {
+  const userId = c.get('userId')
+  const body = await c.req.json()
+  const [row] = await db(c.env.DATABASE_URL)
+    .insert(positions)
+    .values({ ...body, userId })    // ← 注入 userId
+    .returning()
+  return c.json(row, 201)
+})
+
+// GET /api/positions/:id — 校验归属
+positionsRouter.get('/:id', async (c) => {
+  const userId = c.get('userId')
+  const [row] = await db(c.env.DATABASE_URL)
+    .select()
+    .from(positions)
+    .where(and(eq(positions.id, c.req.param('id')), eq(positions.userId, userId)))
+    .limit(1)
+  if (!row) return c.json({ error: 'Not found' }, 404)
+  return c.json(row)
+})
+```
+
+`trades.ts`、`watchlist.ts` 同理。`questionnaires.ts` 通过 JOIN `trade_records → positions.userId` 验证归属。
+
+---
+
+### Step 10 — 更新 `worker/db/seed.ts`（添加初始管理员）
+
+```typescript
+// 在 seed.ts 中追加管理员创建逻辑
+import { hashPassword } from '../lib/password'
+import { users } from './schema'
+
+const ADMIN_USERNAME = process.env.SEED_ADMIN_USERNAME ?? 'admin'
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@123456'
+
+const { hash, salt } = await hashPassword(ADMIN_PASSWORD)
+await db.insert(users).values({
+  username: ADMIN_USERNAME,
+  displayName: '超级管理员',
+  passwordHash: hash,
+  passwordSalt: salt,
+  role: 'ADMIN',
+}).onConflictDoNothing()  // 防止重复执行报错
+
+console.log(`✅ 管理员账号已创建：${ADMIN_USERNAME}`)
+```
+
+---
+
+### Step 11 — 更新 Cloudflare Workers 环境变量
+
+**`wrangler.toml`** 中删除 `API_SECRET_TOKEN`，改为：
+
+```toml
+[vars]
+# JWT_SECRET 在 Cloudflare Dashboard 中设置为加密变量，不写入 toml
+```
+
+**Cloudflare Dashboard → Workers & Pages → Settings → Variables** 中配置：
+- `DATABASE_URL` — Neon 连接字符串
+- `JWT_SECRET` — 至少 32 位随机字符串（**加密存储**）
+
+**本地 `.dev.vars`**（gitignore 中已排除）：
+```env
+DATABASE_URL=postgresql://...
+JWT_SECRET=local_dev_secret_change_in_prod
+```
+
+---
+
+## 数据库 Schema 概览
+
+### 表关系
 
 ```
 users
   │
-  ├── positions (user_id) ──── trade_records ──── questionnaires
-  │        └──────────────────────────────────── trade_reviews
+  ├── positions (user_id) ─── trade_records ─── questionnaires
+  │         └──────────────────────────────── trade_reviews
   │
   └── watchlist (user_id)
 
 questionnaire_templates  ← 全局共享，无 user_id
 ```
 
+### 关键索引
+
+```sql
+CREATE INDEX ON positions (user_id, status);
+CREATE INDEX ON trade_records (position_id);
+CREATE INDEX ON watchlist (user_id) WHERE removed_at IS NULL;
+```
+
 ---
 
-## 🔐 认证与授权设计
+## 前端待完成项
 
-### 整体流程
-
-```
-[浏览器]                    [Cloudflare Worker]
-   │                               │
-   │  POST /api/auth/login          │
-   │  { username, password }  ───► │ 1. 查询 users 表
-   │                               │ 2. PBKDF2 验证密码
-   │                               │ 3. 签发 JWT（7天有效期）
-   │ ◄─── Set-Cookie: token=<jwt>  │    Payload: { sub: userId, role, username }
-   │      (httpOnly; Secure; SameSite=Lax)
-   │
-   │  GET /api/positions            │
-   │  Cookie: token=<jwt>    ───►  │ 4. authMiddleware 验证 JWT
-   │                               │ 5. 从 JWT 取出 userId
-   │                               │ 6. WHERE user_id = $userId
-   │ ◄─── 仅返回该用户数据          │
-```
-
-### 密码存储
-
-使用 **Web Crypto API（PBKDF2-SHA256）**，无需额外依赖，原生支持 Cloudflare Workers：
+### AuthContext（全局用户状态）
 
 ```typescript
-// worker/lib/password.ts
-const ITERATIONS = 310_000;  // OWASP 2024 推荐值
+// src/context/AuthContext.tsx
+import { createContext, useContext, useState, useEffect } from 'react'
+import { api } from '@/lib/api'
+import type { User } from '@/types'
 
-export async function hashPassword(password: string): Promise<{ hash: string; salt: string }> {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']
-  );
-  const hashBuffer = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: ITERATIONS, hash: 'SHA-256' },
-    keyMaterial, 256
-  );
-  return {
-    hash: btoa(String.fromCharCode(...new Uint8Array(hashBuffer))),
-    salt: btoa(String.fromCharCode(...salt)),
-  };
+const AuthContext = createContext<{
+  user: User | null
+  loading: boolean
+  logout: () => void
+} | null>(null)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get<User>('/auth/me')
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false))
+  }, [])
+
+  function logout() {
+    api.post('/auth/logout', {}).catch(() => {})
+    localStorage.removeItem('tt_token')
+    setUser(null)
+  }
+
+  return <AuthContext.Provider value={{ user, loading, logout }}>{children}</AuthContext.Provider>
 }
 
-export async function verifyPassword(password: string, hash: string, salt: string): Promise<boolean> {
-  const result = await hashPassword(password); // 用相同 salt 重新哈希
-  // timing-safe compare
-  return result.hash === hash;
-}
-```
-
-### JWT 签发与验证
-
-使用 [`jose`](https://github.com/panva/jose) 库（Edge Runtime 兼容）：
-
-```typescript
-// worker/lib/jwt.ts
-import { SignJWT, jwtVerify } from 'jose';
-
-const getSecret = (env: Env) => new TextEncoder().encode(env.JWT_SECRET);
-
-export async function signToken(payload: JWTPayload, env: Env) {
-  return new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('7d')
-    .setIssuedAt()
-    .sign(getSecret(env));
-}
-
-export async function verifyToken(token: string, env: Env) {
-  const { payload } = await jwtVerify(token, getSecret(env));
-  return payload as { sub: string; role: 'ADMIN' | 'USER'; username: string };
+export function useAuth() {
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
+  return ctx
 }
 ```
 
-### API 路由规范
+在 `src/main.tsx` 中用 `<AuthProvider>` 包裹整个应用。
 
-| 方法 | 路径 | 权限 | 说明 |
+---
+
+## 问卷设计
+
+### 买入问卷（100 分）
+
+| # | 维度 | 满分 | 评分要点 |
 |---|---|---|---|
-| POST | `/api/auth/login` | 公开 | 用户名密码登录 |
-| POST | `/api/auth/logout` | 已登录 | 清除 Cookie |
-| GET | `/api/auth/me` | 已登录 | 获取当前用户信息 |
-| PUT | `/api/auth/password` | 已登录 | 修改自己的密码 |
-| GET | `/api/users` | ADMIN | 用户列表 |
-| POST | `/api/users` | ADMIN | 创建新用户 |
-| PUT | `/api/users/:id` | ADMIN | 修改用户（停用/改角色）|
-| GET | `/api/positions` | 已登录 | **仅返回自己的持仓** |
-| POST | `/api/positions` | 已登录 | 创建归属自己的持仓 |
-| GET | `/api/positions/:id` | 已登录 | 校验 `user_id` 匹配 |
-| ... | （其余业务接口同理）| 已登录 | Worker 中间件自动过滤 |
+| 1 | 基本面分析 | 20 | 0 = 未分析；20 = 财务/竞争/护城河深度研究 |
+| 2 | 估值水平 | 15 | 显著高估→0；显著低估→15 |
+| 3 | 仓位合理性 | 15 | 符合资金管理计划，未超单股上限 |
+| 4 | 止损计划 | 15 | 明确止损位 + 执行逻辑 |
+| 5 | 技术面信号 | 10 | 趋势/支撑/形态支持 |
+| 6 | 催化剂明确性 | 10 | 近期有可识别催化剂 |
+| 7 | 目标价位 | 10 | 设定目标价 + 逻辑依据 |
+| 8 | 情绪稳定性 | 5 | 反向：越冲动越低 |
 
-### 前端路由守卫
+### 卖出问卷（100 分）
 
-```typescript
-// src/components/RequireAuth.tsx
-const { user, loading } = useAuth();
-if (loading) return <Spinner />;
-if (!user) return <Navigate to="/login" replace />;
-if (requiredRole === 'ADMIN' && user.role !== 'ADMIN') return <Navigate to="/" replace />;
-return children;
-```
-
-```typescript
-// src/main.tsx 路由配置示意
-<Route path="/login" element={<Login />} />
-<Route element={<RequireAuth />}>
-  <Route path="/" element={<Dashboard />} />
-  <Route path="/positions" element={<Positions />} />
-  ...
-  <Route element={<RequireAuth role="ADMIN" />}>
-    <Route path="/admin/users" element={<AdminUsers />} />
-  </Route>
-</Route>
-```
-
----
-
-## 🖥️ 登录页设计
-
-路由：`/login`（未登录时所有路由均重定向至此）
-
-### 视觉布局
-
-```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│          [SVG Logo]  Trading Tracker                │
-│                                                     │
-│    ┌─────────────────────────────────────────┐     │
-│    │                                         │     │
-│    │  用户名                                  │     │
-│    │  ┌─────────────────────────────────┐   │     │
-│    │  │  username                       │   │     │
-│    │  └─────────────────────────────────┘   │     │
-│    │                                         │     │
-│    │  密码                                   │     │
-│    │  ┌─────────────────────────────────┐   │     │
-│    │  │  ••••••••              [👁]     │   │     │
-│    │  └─────────────────────────────────┘   │     │
-│    │                                         │     │
-│    │  [        登 录        ]                │     │
-│    │                                         │     │
-│    └─────────────────────────────────────────┘     │
-│                                                     │
-│              © 2025 Trading Tracker                 │
-└─────────────────────────────────────────────────────┘
-```
-
-**设计规范：**
-- 全屏居中布局，背景色 `--color-bg`（暖米色）
-- 卡片宽度 `max-w-sm`（384px），`--shadow-lg`
-- 错误提示：行内红色文字（`--color-error`），shake 动画
-- 密码可见性切换按钮（眼睛图标）
-- 登录中状态：按钮 disabled + spinner，防止重复提交
-- **不提供公开注册入口**：新账号只能由管理员在 `/admin/users` 创建
-
-### 登录状态机
-
-```
-idle → loading → success → redirect to /
-               ↘ error   → idle（显示错误信息）
-```
-
----
-
-## 👤 管理员功能
-
-### 用户管理页（`/admin/users`）
-
-- 用户列表表格：用户名 / 昵称 / 角色 / 状态 / 最近登录 / 创建时间
-- **创建用户**：弹窗表单，填写用户名、昵称、初始密码、角色
-- **停用/启用用户**：切换 `is_active`（停用后 JWT 验证时额外检查此字段）
-- **重置密码**：管理员设置新临时密码，用户下次登录后强制修改
-- 不支持删除用户（保留历史数据完整性）
-
----
-
-## 📋 问卷设计
-
-### 买入问卷（100分）
-
-| # | 题目 | 类型 | 满分 | 评分说明 |
-|---|---|---|---|---|
-| 1 | 基本面分析 | SCORE | 20 | 0=完全未分析；20=财务/竞争/护城河深度研究 |
-| 2 | 估值水平 | SCORE | 15 | 0=明显高估；15=显著低估或合理估值 |
-| 3 | 仓位合理性 | SCORE | 15 | 是否符合资金管理计划，单股不超过上限 |
-| 4 | 止损计划 | SCORE | 15 | 是否设定明确止损位及对应理由 |
-| 5 | 技术面信号 | SCORE | 10 | 图形是否支持买入（趋势/支撑/形态） |
-| 6 | 催化剂明确性 | SCORE | 10 | 是否有近期明确的价格催化剂 |
-| 7 | 目标价位 | SCORE | 10 | 是否设定合理目标价及逻辑依据 |
-| 8 | 情绪稳定性 | SCORE | 5 | 反向评分：越冲动越低，理性决策得满分 |
-| **合计** | | | **100** | |
-
-### 卖出问卷（100分）
-
-| # | 题目 | 类型 | 满分 | 评分说明 |
-|---|---|---|---|---|
-| 1 | 卖出主因 | SELECT | 25 | 达目标价/止损/基本面恶化/调仓 |
-| 2 | 计划执行度 | SCORE | 20 | 是否按买入时制定的计划执行 |
-| 3 | 基本面变化评估 | SCORE | 15 | 对基本面变化的分析是否充分 |
-| 4 | 情绪稳定性 | SCORE | 15 | 是否受恐慌/贪婪驱动（反向） |
-| 5 | 机会成本分析 | SCORE | 10 | 是否认真比较持有 vs 卖出的得失 |
-| 6 | 时机依据 | SCORE | 10 | 对卖出时机的选择是否有充分依据 |
-| 7 | 卖出后复盘意愿 | BOOL | 5 | 是否愿意在平仓后完成详细复盘 |
-| **合计** | | | **100** | |
+| # | 维度 | 满分 | 评分要点 |
+|---|---|---|---|
+| 1 | 卖出主因 | 25 | SELECT：达目标/止损/基本面恶化/调仓 |
+| 2 | 计划执行度 | 20 | 是否按买入时计划执行 |
+| 3 | 基本面变化评估 | 15 | 对变化的分析是否充分 |
+| 4 | 情绪稳定性 | 15 | 恐慌/贪婪驱动→低分（反向） |
+| 5 | 机会成本分析 | 10 | 持有 vs 卖出比较 |
+| 6 | 时机依据 | 10 | 时机选择有充分依据 |
+| 7 | 复盘意愿 | 5 | BOOL：是否愿意完成平仓复盘 |
 
 ### 评分等级
 
-| 等级 | 分数区间 | 含义 |
+| 等级 | 分数 | 颜色 |
 |---|---|---|
-| **S** | 90–100 | 决策质量极高，逻辑严密 |
-| **A** | 75–89 | 良好决策，有据可依 |
-| **B** | 60–74 | 一般，存在明显漏洞 |
-| **C** | 45–59 | 较差，依赖直觉或情绪 |
-| **D** | 0–44 | 高风险决策，缺乏基本依据 |
+| **S** | 90–100 | `text-emerald-400` |
+| **A** | 75–89 | `text-teal-400` |
+| **B** | 60–74 | `text-yellow-400` |
+| **C** | 45–59 | `text-orange-400` |
+| **D** | 0–44 | `text-red-400` |
 
 ---
 
-## 📊 看板模块设计
-
-所有看板数据均严格隔离，**仅显示当前登录用户自己的数据**。
-
-### Dashboard（个人首页看板）
-
-- **KPI 卡片**：总投入 / 已实现盈亏 / 平均决策评分 / 胜率
-- **持仓状态总览**：OPEN 仓位，显示浮动盈亏
-- **近期交易时间线**：最近 10 笔
-- **决策评分趋势**：最近 30 天折线图
-
-### Analytics（深度分析）
-
-- **决策分 vs 收益率散点图**
-- **各维度评分雷达图**（识别个人薄弱项）
-- **持仓时长分布直方图**
-- **市场分布饼图**
-- **月度盈亏柱状图**
-- **标签绩效对比**
-
----
-
-## 🚀 快速开始
-
-### 前置条件
-
-- [Bun](https://bun.sh/) >= 1.0
-- [Cloudflare 账号](https://cloudflare.com/)
-- [Neon 数据库](https://neon.tech/)（PostgreSQL Serverless）
-
-### 本地开发
+## 本地开发
 
 ```bash
-# 1. 克隆仓库
-git clone https://github.com/CNVelocity/trading_tracker.git
-cd trading_tracker
-
-# 2. 安装依赖
+# 1. 安装依赖
 bun install
 
-# 3. 配置环境变量
-cp .env.example .env.local
+# 2. 配置本地环境变量
+cp .env.example .dev.vars
+# 编辑 .dev.vars，填入 DATABASE_URL 和 JWT_SECRET
 
-# 4. 执行数据库迁移
+# 3. 执行数据库迁移
 bun run db:migrate
 
-# 5. 填充初始数据（问卷题目 + 初始管理员账号）
+# 4. 初始化题目 + 管理员账号
 bun run db:seed
 
-# 6. 启动开发服务器
+# 5. 启动开发服务器（前端 + Worker 同时运行）
 bun run dev
 ```
 
 ### 环境变量
 
 ```env
-# Neon PostgreSQL 连接字符串
+# .dev.vars（本地开发）/ Cloudflare Dashboard（生产）
 DATABASE_URL=postgresql://user:password@ep-xxx.neon.tech/trading_tracker?sslmode=require
+JWT_SECRET=your_random_32plus_char_secret
 
-# JWT 签名密钥（至少 32 位随机字符串）
-JWT_SECRET=your_very_long_random_secret_here
-
-# 初始管理员账号（仅 db:seed 时使用，之后可删除）
+# 仅用于 db:seed，不部署到 Worker
 SEED_ADMIN_USERNAME=admin
-SEED_ADMIN_PASSWORD=change_me_on_first_login
-
-# 可选：时区
-TZ=Asia/Shanghai
+SEED_ADMIN_PASSWORD=Admin@123456_change_me
 ```
-
-> 旧版的 `API_SECRET_TOKEN` 已废弃，改用 JWT。
 
 ---
 
-## ☁️ 部署到 Cloudflare Pages
+## 部署
 
 ```bash
-bun run deploy
+bun run build    # 编译前端
+bun run deploy   # wrangler deploy
 ```
 
-在 Cloudflare Dashboard → Workers & Pages → 对应 Worker → Settings → Variables 中配置：
-- `DATABASE_URL`
-- `JWT_SECRET`
+Cloudflare Dashboard → Workers & Pages → Settings → Environment Variables 中配置加密变量：`DATABASE_URL`、`JWT_SECRET`。
 
 ---
 
-## 🎨 设计语言
-
-沿用 [ve-photo-gallery](https://github.com/CNVelocity/ve-photo-gallery) 的设计体系：
-
-- **色彩**：Nexus 设计系统（暖米色底色 + Teal 主色调）
-- **字体**：`Satoshi`（正文）+ `Instrument Serif`（数字展示）
-- **组件**：Tailwind CSS v4 原子化，配合 Framer Motion 过渡动画
-- **明暗模式**：支持系统偏好 + 手动切换（`data-theme`）
-- **布局**：侧边栏导航（桌面端），底部 Tab 栏（移动端）
-
----
-
-## 📋 开发路线图
+## 开发路线图
 
 ### Phase 1 — 核心功能（MVP）
-- [ ] 基础布局与路由
-- [ ] **登录页 + JWT 鉴权流程**
-- [ ] **用户管理（管理员）**
-- [ ] 持仓/交易 CRUD（带 user_id 隔离）
-- [ ] 买入/卖出问卷流程
+- [x] 前端基础布局与路由
+- [x] 登录页（用户名 + 密码）
+- [x] 前端路由守卫（`RequireAuth`）
+- [x] UI 组件库（Card, Button, Input, Modal, Badge, Skeleton）
+- [x] 类型定义（User, Position, Trade, DashboardStats 等）
+- [ ] `worker/db/schema.ts` — 添加 `users` 表 + `user_id` FK
+- [ ] `worker/lib/password.ts` — PBKDF2 密码工具
+- [ ] `worker/lib/jwt.ts` — JWT 签发/验证
+- [ ] `worker/middleware/auth.ts` — 重写为 JWT 验证 + userId 注入
+- [ ] `worker/routes/auth.ts` — login / logout / me / password
+- [ ] `worker/routes/users.ts` — 管理员用户 CRUD
+- [ ] `worker/index.ts` — 更新 Bindings + 路由注册
+- [ ] 所有业务路由加 `user_id` 隔离
+- [ ] `worker/db/seed.ts` — 初始管理员账号
+- [ ] 数据库迁移
+- [ ] 持仓/交易 CRUD 表单（`NewTrade.tsx`）
+- [ ] 问卷流程（`Questionnaire.tsx`）
 
 ### Phase 2 — 看板与分析
-- [ ] Dashboard KPI 看板
-- [ ] Analytics 深度分析页
-- [ ] 自选股池
+- [ ] `AuthContext` + `useAuth` hook
+- [ ] Dashboard KPI 接入真实数据
+- [ ] Analytics 深度分析页（散点图、雷达图、月度盈亏）
+- [ ] 自选股池完整功能
 - [ ] 交易复盘功能
+- [ ] 管理员用户管理页（`/admin/users`）
 
 ### Phase 3 — 体验优化
-- [ ] 修改密码 / 个人设置页
+- [ ] 个人设置（修改密码、修改昵称）
 - [ ] 问卷历史统计与个人偏差报告
-- [ ] 交易导入（CSV）
+- [ ] 交易 CSV 导入
 - [ ] 多货币汇率换算
 - [ ] PWA 移动端支持
 
 ---
 
-## 📝 数据库迁移命令
-
-```bash
-bun run db:generate   # 生成迁移文件
-bun run db:migrate    # 执行迁移
-bun run db:studio     # Drizzle Studio 可视化
-bun run db:seed       # 填充题目 + 初始管理员
-```
-
----
-
-## 🔐 安全说明
+## 安全说明
 
 | 项目 | 实现方式 |
 |---|---|
 | 密码存储 | PBKDF2-SHA256，310,000 次迭代（OWASP 2024），每账号独立随机盐 |
-| 会话令牌 | HS256 JWT，7 天有效期，存于 `httpOnly; Secure; SameSite=Lax` Cookie |
-| 数据隔离 | 所有业务接口从 JWT 取 `userId`，WHERE 子句强制过滤 |
-| 停用账号 | JWT 验证时额外查询 `users.is_active`，已停用账号的请求返回 401 |
-| 管理员操作 | `requireAdmin` 中间件检查 JWT payload 中的 `role` 字段 |
-| 密码重置 | 仅管理员可操作，下发临时密码，不通过邮件（无 SMTP 依赖）|
+| 会话令牌 | HS256 JWT，7 天有效期，httpOnly + Secure + SameSite=Lax Cookie |
+| 数据隔离 | 所有业务查询 WHERE `user_id = $userId`（从 JWT 取值），不依赖客户端传入 |
+| 停用账号 | authMiddleware 验证 JWT 后额外查询 `users.is_active` |
+| 管理员操作 | `requireAdmin` 中间件检查 JWT payload 中的 `role` |
+| 登录限速 | 同 IP 5 次失败后锁定 15 分钟（`worker/auth.ts` 中 `checkRateLimit`）|
 
 ---
 
