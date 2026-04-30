@@ -9,7 +9,6 @@ type Variables = { userId: string; userRole: 'ADMIN' | 'USER'; username: string 
 
 export const tradesRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-/** Verify a position belongs to the requesting user */
 async function assertPositionOwner(db: DB, positionId: string, userId: string): Promise<boolean> {
   const [pos] = await db
     .select({ id: positions.id })
@@ -34,7 +33,6 @@ tradesRouter.get('/', async (c) => {
     return c.json(rows)
   }
 
-  // Return all trades for this user via JOIN
   const rows = await db
     .select({ trade: tradeRecords })
     .from(tradeRecords)
@@ -42,6 +40,23 @@ tradesRouter.get('/', async (c) => {
     .where(eq(positions.userId, userId))
     .orderBy(desc(tradeRecords.tradeDate))
   return c.json(rows.map(r => r.trade))
+})
+
+// GET /api/trades/:id — used by Questionnaire page to resolve direction
+tradesRouter.get('/:id', async (c) => {
+  const db     = createDb(c.env.DATABASE_URL)
+  const userId = c.get('userId')
+  const id     = c.req.param('id')
+
+  const [row] = await db
+    .select({ trade: tradeRecords, position: positions })
+    .from(tradeRecords)
+    .innerJoin(positions, eq(tradeRecords.positionId, positions.id))
+    .where(and(eq(tradeRecords.id, id), eq(positions.userId, userId)))
+    .limit(1)
+
+  if (!row) return c.json({ error: 'Not found' }, 404)
+  return c.json({ ...row.trade, position: row.position })
 })
 
 tradesRouter.post('/', async (c) => {
@@ -53,9 +68,9 @@ tradesRouter.post('/', async (c) => {
     return c.json({ error: 'Position not found' }, 404)
   }
 
-  const price      = parseFloat(body.price)
-  const quantity   = parseInt(body.quantity)
-  const commission = parseFloat(body.commission ?? '0')
+  const price       = parseFloat(body.price)
+  const quantity    = parseInt(body.quantity)
+  const commission  = parseFloat(body.commission ?? '0')
   const totalAmount = body.direction === 'BUY'
     ? price * quantity + commission
     : price * quantity - commission
@@ -125,7 +140,7 @@ async function recalculatePosition(db: DB, positionId: string) {
     }
   }
 
-  const avgCost = currentQty > 0 ? totalCost / currentQty : 0
+  const avgCost  = currentQty > 0 ? totalCost / currentQty : 0
   const isClosed = currentQty <= 0
 
   await db.update(positions).set({
