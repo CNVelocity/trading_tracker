@@ -1,10 +1,10 @@
 /**
  * password.ts — PBKDF2-SHA256 password hashing (Web Crypto API)
- * 310,000 iterations per OWASP 2024 recommendation.
- * Works in both Cloudflare Workers and Bun (for seed scripts).
+ * 100,000 iterations — Cloudflare Workers Web Crypto hard limit is 100k.
+ * (OWASP recommends 310k for Node/server, but CF Workers caps at 100k)
  */
 
-const ITERATIONS = 310_000
+const ITERATIONS = 100_000
 const ENC = new TextEncoder()
 
 export async function hashPassword(
