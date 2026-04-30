@@ -1,6 +1,19 @@
 export interface Env {
-  ASSETS: Fetcher
+  ASSETS:       Fetcher
   DATABASE_URL: string
-  API_SECRET_TOKEN: string
-  TOKEN_SECRET?: string
+  JWT_SECRET:   string
+}
+
+export type UserRole = 'ADMIN' | 'USER'
+
+export interface HonoBindings {
+  DATABASE_URL: string
+  JWT_SECRET:   string
+  ASSETS:       Fetcher
+}
+
+export interface HonoVariables {
+  userId:   string
+  userRole: UserRole
+  username: string
 }

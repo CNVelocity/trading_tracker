@@ -1,14 +1,33 @@
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
-import { questionnaireTemplates } from './schema'
+import { questionnaireTemplates, users } from './schema'
+import { hashPassword } from '../lib/password'
 
 const DATABASE_URL = process.env.DATABASE_URL!
+if (!DATABASE_URL) throw new Error('DATABASE_URL is not set')
 
 async function seed() {
   const sql = neon(DATABASE_URL)
   const db = drizzle(sql)
 
-  console.log('Clearing existing templates...')
+  // ── Admin user ─────────────────────────────────────────────────────────────
+  const adminUsername = (process.env.SEED_ADMIN_USERNAME ?? 'admin').toLowerCase().trim()
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@123456'
+  const adminName     = process.env.SEED_ADMIN_NAME     ?? '超级管理员'
+
+  console.log(`Creating admin user: ${adminUsername} ...`)
+  const { hash, salt } = await hashPassword(adminPassword)
+  await db.insert(users).values({
+    username:     adminUsername,
+    displayName:  adminName,
+    passwordHash: hash,
+    passwordSalt: salt,
+    role:         'ADMIN',
+  }).onConflictDoNothing()
+  console.log(`✓ Admin user ready (${adminUsername})`)
+
+  // ── Questionnaire templates ────────────────────────────────────────────────
+  console.log('Seeding questionnaire templates...')
   await db.delete(questionnaireTemplates)
 
   const buyTemplates = [
@@ -94,12 +113,12 @@ async function seed() {
       questionType: 'SELECT' as const,
       maxScore: 25,
       options: JSON.stringify([
-        { value: 'target_reached', label: '达到目标价', score: 25 },
-        { value: 'stop_loss', label: '触发止损位', score: 25 },
-        { value: 'fundamental_change', label: '基本面恶化', score: 20 },
-        { value: 'reallocation', label: '资金调仓/更好机会', score: 20 },
-        { value: 'partial_profit', label: '部分止盈', score: 15 },
-        { value: 'other', label: '其他原因', score: 5 },
+        { value: 'target_reached',     label: '达到目标价',     score: 25 },
+        { value: 'stop_loss',          label: '触发止损位',     score: 25 },
+        { value: 'fundamental_change', label: '基本面恶化',     score: 20 },
+        { value: 'reallocation',       label: '资金调仓/更好机会', score: 20 },
+        { value: 'partial_profit',     label: '部分止盈',       score: 15 },
+        { value: 'other',              label: '其他原因',       score: 5  },
       ]),
       hint: '选择最符合本次卖出的主要原因',
       orderIndex: 1,
@@ -161,11 +180,9 @@ async function seed() {
   ]
 
   await db.insert(questionnaireTemplates).values([...buyTemplates, ...sellTemplates])
+  console.log(`✓ Seeded ${buyTemplates.length} BUY + ${sellTemplates.length} SELL templates`)
 
-  console.log(
-    `✓ Seeded ${buyTemplates.length} BUY templates and ${sellTemplates.length} SELL templates`
-  )
   process.exit(0)
 }
 
-seed().catch(console.error)
+seed().catch((e) => { console.error(e); process.exit(1) })
