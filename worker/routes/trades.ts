@@ -1,144 +1,111 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
-import { getDb } from '../db/index'
+import { createDb } from '../db'
 import { tradeRecords, positions } from '../db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc } from 'drizzle-orm'
+import type { DB } from '../db'
 
-const router = new Hono<{ Bindings: Env; Variables: { db: ReturnType<typeof getDb> } }>()
+type Bindings = { DATABASE_URL: string; API_SECRET_TOKEN: string; ASSETS: Fetcher }
 
-// GET /api/trades?positionId=xxx
-router.get('/', async (c) => {
-  const db = c.get('db')
+export const tradesRouter = new Hono<{ Bindings: Bindings }>()
+
+tradesRouter.get('/', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
   const positionId = c.req.query('positionId')
-  const query = db.select().from(tradeRecords).orderBy(desc(tradeRecords.tradeDate))
+
   const rows = positionId
-    ? await query.where(eq(tradeRecords.positionId, positionId))
-    : await query
+    ? await db.select().from(tradeRecords).where(eq(tradeRecords.positionId, positionId)).orderBy(desc(tradeRecords.tradeDate))
+    : await db.select().from(tradeRecords).orderBy(desc(tradeRecords.tradeDate))
+
   return c.json(rows)
 })
 
-// GET /api/trades/:id
-router.get('/:id', async (c) => {
-  const db = c.get('db')
-  const [trade] = await db
-    .select()
-    .from(tradeRecords)
-    .where(eq(tradeRecords.id, c.req.param('id')))
-  if (!trade) return c.json({ error: 'Not found' }, 404)
-  return c.json(trade)
-})
-
-// POST /api/trades — create trade + recalculate position aggregates
-router.post('/', async (c) => {
-  const db = c.get('db')
-  const body = await c.req.json<{
-    positionId: string
-    direction: 'BUY' | 'SELL'
-    tradeDate: string
-    price: string
-    quantity: number
-    commission?: string
-    currency?: 'CNY' | 'HKD' | 'USD'
-    notes?: string
-  }>()
+tradesRouter.post('/', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
+  const body = await c.req.json()
 
   const price = parseFloat(body.price)
-  const qty = body.quantity
+  const quantity = parseInt(body.quantity)
   const commission = parseFloat(body.commission ?? '0')
   const totalAmount =
     body.direction === 'BUY'
-      ? price * qty + commission
-      : price * qty - commission
+      ? price * quantity + commission
+      : price * quantity - commission
 
   const [trade] = await db
     .insert(tradeRecords)
-    .values({ ...body, totalAmount: totalAmount.toString() })
+    .values({
+      positionId: body.positionId,
+      direction: body.direction,
+      tradeDate: body.tradeDate,
+      price: body.price,
+      quantity,
+      commission: String(commission),
+      currency: body.currency ?? 'CNY',
+      totalAmount: totalAmount.toFixed(4),
+      notes: body.notes ?? null,
+    })
     .returning()
 
-  // Recalculate position aggregates
-  await recalcPosition(db, body.positionId)
+  await recalculatePosition(db, body.positionId)
 
   return c.json(trade, 201)
 })
 
-// DELETE /api/trades/:id
-router.delete('/:id', async (c) => {
-  const db = c.get('db')
-  const [trade] = await db
-    .select()
-    .from(tradeRecords)
-    .where(eq(tradeRecords.id, c.req.param('id')))
+tradesRouter.delete('/:id', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
+  const id = c.req.param('id')
+
+  const [trade] = await db.select().from(tradeRecords).where(eq(tradeRecords.id, id))
   if (!trade) return c.json({ error: 'Not found' }, 404)
-  await db.delete(tradeRecords).where(eq(tradeRecords.id, trade.id))
-  await recalcPosition(db, trade.positionId)
+
+  await db.delete(tradeRecords).where(eq(tradeRecords.id, id))
+  await recalculatePosition(db, trade.positionId)
+
   return c.json({ ok: true })
 })
 
-/**
- * Recalculate and persist position aggregates after any trade mutation.
- * - avgCost: weighted average cost of remaining BUY shares
- * - currentQuantity: net shares held
- * - totalInvested: cumulative BUY amount
- * - realizedPnl: sum of (sell proceeds - proportional cost)
- */
-async function recalcPosition(db: ReturnType<typeof getDb>, positionId: string) {
+async function recalculatePosition(db: DB, positionId: string) {
   const trades = await db
     .select()
     .from(tradeRecords)
     .where(eq(tradeRecords.positionId, positionId))
+    .orderBy(tradeRecords.tradeDate)
 
-  let totalBuyQty = 0
-  let totalBuyCost = 0
+  let currentQty = 0
+  let totalCost = 0 // tracks cost basis of current holding
+  let totalBought = 0 // cumulative cash out
   let realizedPnl = 0
 
-  const buyQueue: Array<{ price: number; qty: number }> = []
-
-  for (const t of trades.sort((a, b) =>
-    new Date(a.tradeDate).getTime() - new Date(b.tradeDate).getTime(),
-  )) {
-    const p = parseFloat(String(t.price))
-    const q = t.quantity
-    const comm = parseFloat(String(t.commission ?? 0))
+  for (const t of trades) {
+    const qty = Number(t.quantity)
+    const price = parseFloat(String(t.price))
+    const commission = parseFloat(String(t.commission ?? '0'))
 
     if (t.direction === 'BUY') {
-      totalBuyQty += q
-      totalBuyCost += p * q + comm
-      buyQueue.push({ price: p, qty: q })
+      totalBought += qty * price + commission
+      totalCost += qty * price + commission
+      currentQty += qty
     } else {
-      // FIFO: consume earliest buys first
-      let remaining = q
-      let costBasis = 0
-      while (remaining > 0 && buyQueue.length > 0) {
-        const head = buyQueue[0]
-        const consumed = Math.min(head.qty, remaining)
-        costBasis += consumed * head.price
-        head.qty -= consumed
-        remaining -= consumed
-        if (head.qty === 0) buyQueue.shift()
-      }
-      const proceeds = p * q - comm
-      realizedPnl += proceeds - costBasis
+      const avgCost = currentQty > 0 ? totalCost / currentQty : 0
+      realizedPnl += qty * (price - commission / qty) - qty * avgCost
+      totalCost = Math.max(0, totalCost - qty * avgCost)
+      currentQty = Math.max(0, currentQty - qty)
     }
   }
 
-  const currentQuantity = buyQueue.reduce((s, b) => s + b.qty, 0)
-  const avgCost =
-    currentQuantity > 0
-      ? buyQueue.reduce((s, b) => s + b.price * b.qty, 0) / currentQuantity
-      : 0
+  const avgCost = currentQty > 0 ? totalCost / currentQty : 0
+  const isClosed = currentQty <= 0
 
   await db
     .update(positions)
     .set({
-      currentQuantity,
       avgCost: avgCost.toFixed(4),
-      totalInvested: totalBuyCost.toFixed(4),
+      currentQuantity: Math.max(0, currentQty),
+      totalInvested: totalBought.toFixed(4),
       realizedPnl: realizedPnl.toFixed(4),
-      status: currentQuantity === 0 ? 'CLOSED' : 'OPEN',
-      closedAt: currentQuantity === 0 ? new Date().toISOString().slice(0, 10) : null,
+      status: isClosed ? 'CLOSED' : 'OPEN',
+      closedAt: isClosed ? new Date().toISOString().split('T')[0] : null,
       updatedAt: new Date(),
     })
     .where(eq(positions.id, positionId))
 }
-
-export default router

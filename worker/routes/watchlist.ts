@@ -1,51 +1,61 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
-import { getDb } from '../db/index'
+import { createDb } from '../db'
 import { watchlist } from '../db/schema'
-import { eq, isNull, desc } from 'drizzle-orm'
+import { eq, isNull, desc, asc } from 'drizzle-orm'
 
-const router = new Hono<{ Bindings: Env; Variables: { db: ReturnType<typeof getDb> } }>()
+type Bindings = { DATABASE_URL: string; API_SECRET_TOKEN: string; ASSETS: Fetcher }
 
-// GET /api/watchlist — only active (not removed)
-router.get('/', async (c) => {
-  const db = c.get('db')
+export const watchlistRouter = new Hono<{ Bindings: Bindings }>()
+
+watchlistRouter.get('/', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
   const rows = await db
     .select()
     .from(watchlist)
     .where(isNull(watchlist.removedAt))
-    .orderBy(desc(watchlist.createdAt))
+    .orderBy(asc(watchlist.priority), desc(watchlist.createdAt))
   return c.json(rows)
 })
 
-// POST /api/watchlist
-router.post('/', async (c) => {
-  const db = c.get('db')
+watchlistRouter.post('/', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
   const body = await c.req.json()
-  const [item] = await db.insert(watchlist).values(body).returning()
-  return c.json(item, 201)
+
+  const [created] = await db
+    .insert(watchlist)
+    .values({
+      ticker: body.ticker,
+      name: body.name ?? null,
+      market: body.market,
+      currency: body.currency ?? 'CNY',
+      targetBuyPrice: body.targetBuyPrice ?? null,
+      reason: body.reason ?? null,
+      priority: body.priority ?? 'MEDIUM',
+      notes: body.notes ?? null,
+    })
+    .returning()
+
+  return c.json(created, 201)
 })
 
-// PUT /api/watchlist/:id
-router.put('/:id', async (c) => {
-  const db = c.get('db')
+watchlistRouter.patch('/:id', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
+  const id = c.req.param('id')
   const body = await c.req.json()
-  const [item] = await db
+
+  const [updated] = await db
     .update(watchlist)
     .set(body)
-    .where(eq(watchlist.id, c.req.param('id')))
+    .where(eq(watchlist.id, id))
     .returning()
-  if (!item) return c.json({ error: 'Not found' }, 404)
-  return c.json(item)
+
+  return c.json(updated)
 })
 
-// DELETE /api/watchlist/:id — soft delete
-router.delete('/:id', async (c) => {
-  const db = c.get('db')
-  await db
-    .update(watchlist)
-    .set({ removedAt: new Date() })
-    .where(eq(watchlist.id, c.req.param('id')))
+watchlistRouter.delete('/:id', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
+  const id = c.req.param('id')
+  // Soft delete
+  await db.update(watchlist).set({ removedAt: new Date() }).where(eq(watchlist.id, id))
   return c.json({ ok: true })
 })
-
-export default router

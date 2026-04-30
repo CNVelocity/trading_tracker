@@ -1,64 +1,76 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
-import { getDb } from '../db/index'
-import { positions, tradeRecords, questionnaires } from '../db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { createDb } from '../db'
+import { positions, tradeRecords } from '../db/schema'
+import { eq, desc } from 'drizzle-orm'
 
-const router = new Hono<{ Bindings: Env; Variables: { db: ReturnType<typeof getDb> } }>()
+type Bindings = { DATABASE_URL: string; API_SECRET_TOKEN: string; ASSETS: Fetcher }
 
-// GET /api/positions — list all (default: OPEN)
-router.get('/', async (c) => {
-  const db = c.get('db')
-  const status = c.req.query('status')
-  const query = db.select().from(positions).orderBy(desc(positions.openedAt))
+export const positionsRouter = new Hono<{ Bindings: Bindings }>()
+
+positionsRouter.get('/', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
+  const status = c.req.query('status') as 'OPEN' | 'CLOSED' | undefined
+
   const rows = status
-    ? await query.where(eq(positions.status, status as 'OPEN' | 'CLOSED'))
-    : await query
+    ? await db.select().from(positions).where(eq(positions.status, status)).orderBy(desc(positions.createdAt))
+    : await db.select().from(positions).orderBy(desc(positions.createdAt))
+
   return c.json(rows)
 })
 
-// GET /api/positions/:id — single position with its trades
-router.get('/:id', async (c) => {
-  const db = c.get('db')
+positionsRouter.get('/:id', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
   const id = c.req.param('id')
-  const [pos] = await db.select().from(positions).where(eq(positions.id, id))
-  if (!pos) return c.json({ error: 'Not found' }, 404)
+
+  const [position] = await db.select().from(positions).where(eq(positions.id, id))
+  if (!position) return c.json({ error: 'Not found' }, 404)
+
   const trades = await db
     .select()
     .from(tradeRecords)
     .where(eq(tradeRecords.positionId, id))
     .orderBy(desc(tradeRecords.tradeDate))
-  return c.json({ ...pos, trades })
+
+  return c.json({ ...position, trades })
 })
 
-// POST /api/positions — create new position
-router.post('/', async (c) => {
-  const db = c.get('db')
+positionsRouter.post('/', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
   const body = await c.req.json()
-  const [pos] = await db.insert(positions).values(body).returning()
-  return c.json(pos, 201)
+
+  const [created] = await db
+    .insert(positions)
+    .values({
+      ticker: body.ticker,
+      name: body.name ?? null,
+      market: body.market,
+      currency: body.currency ?? 'CNY',
+      openedAt: body.openedAt,
+      tags: body.tags ?? null,
+      notes: body.notes ?? null,
+    })
+    .returning()
+
+  return c.json(created, 201)
 })
 
-// PUT /api/positions/:id — update (e.g. close position)
-router.put('/:id', async (c) => {
-  const db = c.get('db')
+positionsRouter.patch('/:id', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
   const id = c.req.param('id')
   const body = await c.req.json()
-  const [pos] = await db
+
+  const [updated] = await db
     .update(positions)
     .set({ ...body, updatedAt: new Date() })
     .where(eq(positions.id, id))
     .returning()
-  if (!pos) return c.json({ error: 'Not found' }, 404)
-  return c.json(pos)
+
+  return c.json(updated)
 })
 
-// DELETE /api/positions/:id
-router.delete('/:id', async (c) => {
-  const db = c.get('db')
+positionsRouter.delete('/:id', async (c) => {
+  const db = createDb(c.env.DATABASE_URL)
   const id = c.req.param('id')
   await db.delete(positions).where(eq(positions.id, id))
   return c.json({ ok: true })
 })
-
-export default router
