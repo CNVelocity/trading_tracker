@@ -1,29 +1,43 @@
-import clsx from 'clsx'
+import { cn } from '@/lib/utils'
 
-interface Props {
+interface SkeletonProps {
   className?: string
   count?: number
 }
 
-export function SkeletonLine({ className }: { className?: string }) {
-  return <div className={clsx('skeleton h-4', className)} />
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn('skeleton', className)} />
 }
 
-export function SkeletonCard({ className }: Props) {
+export function SkeletonCard({ className }: SkeletonProps) {
   return (
-    <div className={clsx('bg-stone-900 border border-stone-800 rounded-xl p-5 space-y-3', className)}>
-      <SkeletonLine className="w-1/3" />
-      <SkeletonLine className="w-2/3" />
-      <SkeletonLine className="w-1/2" />
+    <div className={cn('bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 space-y-3', className)}>
+      <Skeleton className="h-3 w-24" />
+      <Skeleton className="h-7 w-32" />
+      <Skeleton className="h-3 w-16" />
     </div>
   )
 }
 
-export default function Skeleton({ count = 3, className }: Props) {
+export function SkeletonRow() {
   return (
-    <div className={clsx('space-y-3', className)}>
-      {Array.from({ length: count }).map((_, i) => (
-        <SkeletonCard key={i} />
+    <div className="flex items-center gap-4 px-4 py-3 border-b border-[var(--color-border)]">
+      <Skeleton className="h-8 w-8 rounded-lg" />
+      <div className="flex-1 space-y-1.5">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="h-3 w-16" />
+    </div>
+  )
+}
+
+export function SkeletonTable({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl overflow-hidden">
+      {Array.from({ length: rows }).map((_, i) => (
+        <SkeletonRow key={i} />
       ))}
     </div>
   )
