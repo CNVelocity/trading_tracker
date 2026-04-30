@@ -123,10 +123,11 @@ export interface PositionWithTrades extends Position {
 }
 
 export interface DashboardStats {
-  openPositionsCount: number
+  openPositionsCount:  number
   totalPositionsCount: number
-  avgDecisionScore: number | null
-  winRate: number | null
-  totalTrades: number
-  totalRealizedPnl: string | null
+  avgDecisionScore:    number | null
+  winRate:             number | null
+  totalTrades:         number
+  totalRealizedPnl:    string | null
+  totalInvested:       string | null
 }

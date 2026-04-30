@@ -10,6 +10,7 @@ import { tradesRouter } from './routes/trades'
 import { questionnairesRouter } from './routes/questionnaires'
 import { watchlistRouter } from './routes/watchlist'
 import { setupRouter } from './routes/setup'
+import { statsRouter } from './routes/stats'
 
 type Bindings = {
   DATABASE_URL: string
@@ -30,18 +31,19 @@ app.use('/api/*', cors({
 
 // ── Public routes (no JWT) ───────────────────────────────────────────────────
 app.get('/api/health', (c) => c.json({ ok: true, ts: Date.now() }))
-app.route('/api/auth',  publicAuthRouter)   // POST /login, POST /logout
-app.route('/api/setup', setupRouter)        // POST /setup (one-time init)
+app.route('/api/auth',  publicAuthRouter)
+app.route('/api/setup', setupRouter)
 
 // ── Auth middleware — applies to everything registered below ─────────────────
 app.use('/api/*', authMiddleware)
 
 // ── Protected routes ─────────────────────────────────────────────────────────
-app.route('/api/auth', authRouter)         // GET /me, PUT /password
+app.route('/api/auth', authRouter)
 
 app.use('/api/users/*', requireAdmin)
 app.route('/api/users', usersRouter)
 
+app.route('/api/stats',          statsRouter)
 app.route('/api/positions',      positionsRouter)
 app.route('/api/trades',         tradesRouter)
 app.route('/api/questionnaires', questionnairesRouter)
