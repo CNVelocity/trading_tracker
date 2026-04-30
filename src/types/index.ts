@@ -4,9 +4,20 @@ export type PositionStatus = 'OPEN' | 'CLOSED'
 export type Currency = 'CNY' | 'HKD' | 'USD'
 export type Grade = 'S' | 'A' | 'B' | 'C' | 'D'
 export type QuestionType = 'SCORE' | 'BOOL' | 'TEXT' | 'SELECT'
+export type UserRole = 'ADMIN' | 'USER'
+
+export interface User {
+  id: string
+  username: string
+  displayName: string | null
+  role: UserRole
+  isActive: boolean
+  createdAt: string
+}
 
 export interface Position {
   id: string
+  userId: string
   ticker: string
   name: string | null
   market: Market
@@ -94,6 +105,7 @@ export interface TradeReview {
 
 export interface WatchlistItem {
   id: string
+  userId: string
   ticker: string
   name: string | null
   market: Market
@@ -108,4 +120,13 @@ export interface WatchlistItem {
 
 export interface PositionWithTrades extends Position {
   trades: TradeRecord[]
+}
+
+export interface DashboardStats {
+  openPositionsCount: number
+  totalPositionsCount: number
+  avgDecisionScore: number | null
+  winRate: number | null
+  totalTrades: number
+  totalRealizedPnl: string | null
 }

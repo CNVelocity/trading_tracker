@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import Card from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import type { DashboardStats } from '@/types'
 
@@ -33,13 +33,14 @@ export default function Dashboard() {
             label="平均决策分"
             value={stats?.avgDecisionScore != null ? String(stats.avgDecisionScore) : '—'}
           />
-          {/* Additional KPI cards added in Phase 2 */}
-          <StatCard label="总交易次数" value="—" muted />
-          <StatCard label="胜率" value="—" muted />
+          <StatCard label="总交易次数" value={String(stats?.totalTrades ?? '—')} />
+          <StatCard
+            label="胜率"
+            value={stats?.winRate != null ? `${stats.winRate.toFixed(1)}%` : '—'}
+          />
         </div>
       )}
 
-      {/* Placeholder sections — filled in Phase 2 */}
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <p className="text-sm text-stone-500">持仓列表 — Phase 2 实现</p>

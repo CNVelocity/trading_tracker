@@ -1,4 +1,4 @@
-import type { GradeType, MarketType } from '@/types'
+import type { Grade, Market } from '@/types'
 
 export function formatCurrency(value: number | string, currency = 'CNY'): string {
   const num = typeof value === 'string' ? parseFloat(value) : value
@@ -30,7 +30,7 @@ export function formatDate(dateStr: string): string {
   })
 }
 
-export const GRADE_COLOR: Record<GradeType, string> = {
+export const GRADE_COLOR: Record<Grade, string> = {
   S: 'text-emerald-400',
   A: 'text-teal-400',
   B: 'text-yellow-400',
@@ -38,7 +38,7 @@ export const GRADE_COLOR: Record<GradeType, string> = {
   D: 'text-red-400',
 }
 
-export const GRADE_BG: Record<GradeType, string> = {
+export const GRADE_BG: Record<Grade, string> = {
   S: 'bg-emerald-400/10 text-emerald-400',
   A: 'bg-teal-400/10 text-teal-400',
   B: 'bg-yellow-400/10 text-yellow-400',
@@ -46,7 +46,7 @@ export const GRADE_BG: Record<GradeType, string> = {
   D: 'bg-red-400/10 text-red-400',
 }
 
-export const MARKET_LABEL: Record<MarketType, string> = {
+export const MARKET_LABEL: Record<Market, string> = {
   A_SHARE: 'A股',
   HK: '港股',
   US: '美股',
