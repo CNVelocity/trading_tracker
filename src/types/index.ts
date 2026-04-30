@@ -1,26 +1,25 @@
-export type MarketType = 'A_SHARE' | 'HK' | 'US' | 'ETF' | 'OTHER'
-export type DirectionType = 'BUY' | 'SELL'
+export type Market = 'A_SHARE' | 'HK' | 'US' | 'ETF' | 'OTHER'
+export type Direction = 'BUY' | 'SELL'
 export type PositionStatus = 'OPEN' | 'CLOSED'
-export type CurrencyType = 'CNY' | 'HKD' | 'USD'
-export type GradeType = 'S' | 'A' | 'B' | 'C' | 'D'
+export type Currency = 'CNY' | 'HKD' | 'USD'
+export type Grade = 'S' | 'A' | 'B' | 'C' | 'D'
 export type QuestionType = 'SCORE' | 'BOOL' | 'TEXT' | 'SELECT'
-export type Priority = 'HIGH' | 'MEDIUM' | 'LOW'
 
 export interface Position {
   id: string
   ticker: string
-  name?: string
-  market: MarketType
-  currency: CurrencyType
+  name: string | null
+  market: Market
+  currency: Currency
   status: PositionStatus
   openedAt: string
-  closedAt?: string
-  tags?: string[]
-  notes?: string
-  avgCost?: string
-  currentQuantity?: number
-  totalInvested?: string
-  realizedPnl?: string
+  closedAt: string | null
+  tags: string[] | null
+  notes: string | null
+  avgCost: string | null
+  currentQuantity: number | null
+  totalInvested: string | null
+  realizedPnl: string | null
   createdAt: string
   updatedAt: string
 }
@@ -28,18 +27,18 @@ export interface Position {
 export interface TradeRecord {
   id: string
   positionId: string
-  direction: DirectionType
+  direction: Direction
   tradeDate: string
   price: string
   quantity: number
-  commission?: string
-  currency: CurrencyType
-  totalAmount?: string
-  notes?: string
+  commission: string | null
+  currency: Currency
+  totalAmount: string | null
+  notes: string | null
   createdAt: string
 }
 
-export interface QuestionOption {
+export interface SelectOption {
   value: string
   label: string
   score: number
@@ -47,14 +46,14 @@ export interface QuestionOption {
 
 export interface QuestionnaireTemplate {
   id: string
-  direction: DirectionType
+  direction: Direction | null
   questionKey: string
   questionText: string
   questionType: QuestionType
-  options?: QuestionOption[]
-  maxScore: number
-  weight: number
-  hint?: string
+  options: string | null
+  maxScore: number | null
+  weight: string | null
+  hint: string | null
   orderIndex: number
   isActive: boolean
 }
@@ -63,46 +62,50 @@ export interface QuestionAnswer {
   score?: number
   text?: string
   selected?: string
+  boolValue?: boolean
 }
+
+export type AnswerMap = Record<string, QuestionAnswer>
 
 export interface Questionnaire {
   id: string
   tradeId: string
-  direction: DirectionType
-  answers: Record<string, QuestionAnswer>
+  direction: Direction
+  answers: string
   totalScore: number
-  grade: GradeType
+  grade: Grade
   completedAt: string
+  createdAt: string
 }
 
 export interface TradeReview {
   id: string
   positionId: string
-  actualReturnPct?: string
-  holdDays?: number
-  whatWentRight?: string
-  whatWentWrong?: string
-  lessons?: string
-  wouldDoAgain?: boolean
-  outcomeScore?: number
+  actualReturnPct: string | null
+  holdDays: number | null
+  whatWentRight: string | null
+  whatWentWrong: string | null
+  lessons: string | null
+  wouldDoAgain: boolean | null
+  outcomeScore: number | null
   reviewedAt: string
+  createdAt: string
 }
 
 export interface WatchlistItem {
   id: string
   ticker: string
-  name?: string
-  market: MarketType
-  currency: CurrencyType
-  targetBuyPrice?: string
-  reason?: string
-  priority: Priority
-  removedAt?: string
-  notes?: string
+  name: string | null
+  market: Market
+  currency: Currency | null
+  targetBuyPrice: string | null
+  reason: string | null
+  priority: string | null
+  removedAt: string | null
+  notes: string | null
   createdAt: string
 }
 
-export interface DashboardStats {
-  openPositionsCount: number
-  avgDecisionScore: number | null
+export interface PositionWithTrades extends Position {
+  trades: TradeRecord[]
 }
