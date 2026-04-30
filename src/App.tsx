@@ -7,6 +7,7 @@ import Positions from '@/pages/Positions'
 import Trades from '@/pages/Trades'
 import NewTrade from '@/pages/NewTrade'
 import Questionnaire from '@/pages/Questionnaire'
+import PreTradeCheck from '@/pages/PreTradeCheck'
 import Watchlist from '@/pages/Watchlist'
 import Analytics from '@/pages/Analytics'
 
@@ -24,13 +25,15 @@ export default function App() {
         <Route element={<RequireAuth />}>
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="positions" element={<Positions />} />
-            <Route path="trades" element={<Trades />} />
-            <Route path="trades/new" element={<NewTrade />} />
+            <Route path="dashboard"   element={<Dashboard />} />
+            <Route path="positions"   element={<Positions />} />
+            <Route path="trades"      element={<Trades />} />
+            <Route path="trades/new"  element={<NewTrade />} />
             <Route path="trades/:tradeId/questionnaire" element={<Questionnaire />} />
-            <Route path="watchlist" element={<Watchlist />} />
-            <Route path="analytics" element={<Analytics />} />
+            {/* Pre-trade thinking questionnaire — no trade required */}
+            <Route path="questionnaire/pre" element={<PreTradeCheck />} />
+            <Route path="watchlist"   element={<Watchlist />} />
+            <Route path="analytics"   element={<Analytics />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

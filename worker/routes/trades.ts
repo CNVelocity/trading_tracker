@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { createDb } from '../db'
-import { tradeRecords, positions } from '../db/schema'
+import { tradeRecords, positions, questionnaires } from '../db/schema'
 import { eq, desc, and } from 'drizzle-orm'
 import type { DB } from '../db'
 
@@ -42,7 +42,6 @@ tradesRouter.get('/', async (c) => {
   return c.json(rows.map(r => r.trade))
 })
 
-// GET /api/trades/:id — used by Questionnaire page to resolve direction
 tradesRouter.get('/:id', async (c) => {
   const db     = createDb(c.env.DATABASE_URL)
   const userId = c.get('userId')
@@ -91,6 +90,29 @@ tradesRouter.post('/', async (c) => {
     .returning()
 
   await recalculatePosition(db, body.positionId)
+
+  // If a pre-trade questionnaire was completed before recording this trade,
+  // link it now so it becomes the official trade questionnaire.
+  if (body.preQuestionnaireId) {
+    const [existing] = await db
+      .select()
+      .from(questionnaires)
+      .where(
+        and(
+          eq(questionnaires.id, body.preQuestionnaireId),
+          eq(questionnaires.userId, userId),
+        )
+      )
+      .limit(1)
+
+    if (existing && !existing.tradeId) {
+      await db
+        .update(questionnaires)
+        .set({ tradeId: trade.id, isPreTrade: false })
+        .where(eq(questionnaires.id, body.preQuestionnaireId))
+    }
+  }
+
   return c.json(trade, 201)
 })
 

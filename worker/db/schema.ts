@@ -3,13 +3,13 @@ import {
   integer, boolean, date, timestamp, numeric,
 } from 'drizzle-orm/pg-core'
 
-export const marketTypeEnum    = pgEnum('market_type',    ['A_SHARE', 'HK', 'US', 'ETF', 'OTHER'])
-export const directionTypeEnum = pgEnum('direction_type', ['BUY', 'SELL'])
+export const marketTypeEnum     = pgEnum('market_type',     ['A_SHARE', 'HK', 'US', 'ETF', 'OTHER'])
+export const directionTypeEnum  = pgEnum('direction_type',  ['BUY', 'SELL'])
 export const positionStatusEnum = pgEnum('position_status', ['OPEN', 'CLOSED'])
-export const currencyTypeEnum  = pgEnum('currency_type',  ['CNY', 'HKD', 'USD'])
-export const gradeTypeEnum     = pgEnum('grade_type',     ['S', 'A', 'B', 'C', 'D'])
-export const questionTypeEnum  = pgEnum('question_type',  ['SCORE', 'BOOL', 'TEXT', 'SELECT'])
-export const userRoleEnum      = pgEnum('user_role',      ['ADMIN', 'USER'])
+export const currencyTypeEnum   = pgEnum('currency_type',   ['CNY', 'HKD', 'USD'])
+export const gradeTypeEnum      = pgEnum('grade_type',      ['S', 'A', 'B', 'C', 'D'])
+export const questionTypeEnum   = pgEnum('question_type',   ['SCORE', 'BOOL', 'TEXT', 'SELECT'])
+export const userRoleEnum       = pgEnum('user_role',       ['ADMIN', 'USER'])
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 export const users = pgTable('users', {
@@ -78,9 +78,22 @@ export const questionnaireTemplates = pgTable('questionnaire_templates', {
 })
 
 // ─── Questionnaires ───────────────────────────────────────────────────────────
+// Migration (run once against Neon DB):
+//   ALTER TABLE questionnaires ALTER COLUMN trade_id DROP NOT NULL;
+//   ALTER TABLE questionnaires ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id);
+//   ALTER TABLE questionnaires ADD COLUMN IF NOT EXISTS ticker VARCHAR(20);
+//   ALTER TABLE questionnaires ADD COLUMN IF NOT EXISTS is_pre_trade BOOLEAN NOT NULL DEFAULT FALSE;
+//   UPDATE questionnaires q SET user_id = p.user_id
+//     FROM trade_records tr JOIN positions p ON tr.position_id = p.id
+//     WHERE q.trade_id = tr.id;
 export const questionnaires = pgTable('questionnaires', {
   id:          uuid('id').primaryKey().defaultRandom(),
-  tradeId:     uuid('trade_id').notNull().unique().references(() => tradeRecords.id, { onDelete: 'cascade' }),
+  // Nullable: pre-trade questionnaires have no tradeId until the trade is recorded
+  tradeId:     uuid('trade_id').references(() => tradeRecords.id, { onDelete: 'cascade' }),
+  // userId allows querying pre-trade questionnaires without a trade join
+  userId:      uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  ticker:      varchar('ticker', { length: 20 }),
+  isPreTrade:  boolean('is_pre_trade').notNull().default(false),
   direction:   directionTypeEnum('direction').notNull(),
   answers:     text('answers').notNull(),
   totalScore:  integer('total_score').notNull(),
